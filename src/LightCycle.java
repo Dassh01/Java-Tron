@@ -4,6 +4,18 @@ import java.awt.event.KeyEvent;
 
 public class LightCycle {
 
+    public static class Pose2d {
+        public int x;
+        public int y;
+        public Direction direction;
+
+        Pose2d(int xInitial, int yInitial, Direction directionInitial) {
+            x = xInitial;
+            y = yInitial;
+            direction = directionInitial;
+        }
+    }
+
     private final int[] X;
     private final int[] Y;
 
@@ -16,15 +28,29 @@ public class LightCycle {
     Color headColor;
     Color bodyColor;
 
-    Direction direction = Direction.RIGHT;
+    String name;
+    Pose2d pose;
 
-    public LightCycle(int[] X, int[] Y, Color headColor, Color bodyColor) {
+    /**
+     * Lovely lovely constructor
+     * @param X X array
+     * @param Y Y array
+     * @param headColor Head color
+     * @param bodyColor Body Color
+     */
+    public LightCycle(String name, int[] X, int[] Y, Color headColor, Color bodyColor, Pose2d initialPose) {
+        this.name = name;
         this.X = X;
         this.Y = Y;
         this.headColor = headColor;
         this.bodyColor = bodyColor;
+        pose = initialPose;
     }
 
+    /**
+     * Reflect backend changes onto the Swing app
+     * @param g Graphics renderer
+     */
     public void draw(Graphics g) {
         for(int i = 0; i< tilesPoisonedBehindLimit; i++){
             if(i==0){
@@ -88,13 +114,16 @@ public class LightCycle {
         }
     }
 
+    /**
+     * Responsible for modifying backend direction changes to the coordinate arrays
+     */
     public void move(){
         for(int i = tilesPoisonedBehindLimit; i>0; i--){
             X[i] = X[i-1];
             Y[i] = Y[i-1];
         }
 
-        switch (direction){
+        switch (pose.direction){
             case Direction.UP:
                 Y[0]=Y[0]- GamePanel.Constants.UNIT_SIZE;
                 break;
@@ -110,34 +139,40 @@ public class LightCycle {
         }
     }
 
+    /**
+     * Handles bike directions
+     */
     public class BikeKeyDirectionMonitor extends KeyAdapter {
         @Override
         public void keyPressed(KeyEvent e){
             switch (e.getKeyCode()){
                 case KeyEvent.VK_LEFT:
-                    if(direction != Direction.RIGHT){
-                        direction = Direction.LEFT;
+                    if(pose.direction != Direction.RIGHT){
+                        pose.direction = Direction.LEFT;
                     }
                     break;
                 case KeyEvent.VK_RIGHT:
-                    if(direction != Direction.LEFT){
-                        direction = Direction.RIGHT;
+                    if(pose.direction != Direction.LEFT){
+                        pose.direction = Direction.RIGHT;
                     }
                     break;
                 case KeyEvent.VK_UP:
-                    if(direction != Direction.DOWN){
-                        direction = Direction.UP;
+                    if(pose.direction != Direction.DOWN){
+                        pose.direction = Direction.UP;
                     }
                     break;
                 case KeyEvent.VK_DOWN:
-                    if(direction != Direction.UP){
-                        direction = Direction.DOWN;
+                    if(pose.direction != Direction.UP){
+                        pose.direction = Direction.DOWN;
                     }
                     break;
             }
         }
     }
 
+    /**
+     * Handles bike throttle/slowdown toggles, may need to be reworked
+     */
     public class BikeKeyThrottleMonitor extends KeyAdapter {
         @Override
         public void keyPressed(KeyEvent e) {
@@ -157,6 +192,7 @@ public class LightCycle {
         }
     }
 
+    //getters.. getting they stuffs
     public KeyAdapter getBikeKeyDirectionMonitor() {return new BikeKeyDirectionMonitor();}
     public KeyAdapter getBikeKeyThrottleMonitor() {return new BikeKeyThrottleMonitor();}
 

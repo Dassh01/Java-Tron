@@ -4,18 +4,16 @@ import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.Random;
 
-//TODO: Make the grid bigger
-//TODO: Make the lightcycle slower by default
-//TODO: Add speedup / slowdown
-
 public class GamePanel extends JPanel implements ActionListener {
-
+    //TODO: Add game restart on enter press
+    //TODO: Introduce 2 player system
+    //TODO: Make coordinate system.. work, and make it so that players generate or "spawn" in different areas defined by pose2d
     public static class Constants {
         static final int SCREEN_WIDTH = 800;
         static final int SCREEN_HEIGHT = 800;
         static final int UNIT_SIZE = 15;
         static final int GAME_UNITS = (SCREEN_WIDTH*SCREEN_HEIGHT)/UNIT_SIZE;
-        static final int DELAY = 100; //overall speed of game
+        static final int DELAY = 100; //overall speed of game //TODO: Fine tune value
 
         //Colors
         static final Color blueHeadColor = new Color(14, 40, 234);
@@ -23,6 +21,24 @@ public class GamePanel extends JPanel implements ActionListener {
 
         static final Color orangeHeadColor = new Color(200,150,30);
         static final Color orangeBodyColor = new Color(242, 192, 53);
+
+        static LightCycle.Pose2d blueLightCycleInitialPose = new LightCycle.Pose2d(0,0, LightCycle.Direction.RIGHT);
+        static LightCycle.Pose2d orangeLightCycleInitialPose = new LightCycle.Pose2d(0,0, LightCycle.Direction.UP);
+        //Keymaps
+        /*
+        0 = Up
+        1 = Down
+        2 = Left
+        3 = Right
+        4 = Throttle
+        5 = Slowdown
+         */
+
+        public static final int[] blueKeyMap = {KeyEvent.VK_UP, KeyEvent.VK_DOWN, KeyEvent.VK_LEFT, KeyEvent.VK_RIGHT, //Arrow Keys for direction
+        KeyEvent.VK_N, KeyEvent.VK_M}; //Throttle & Slowdown
+
+        public static final int[] orangeKeyMap = {KeyEvent.VK_W, KeyEvent.VK_S, KeyEvent.VK_A, KeyEvent.VK_D, //WASD for direction
+        KeyEvent.VK_C, KeyEvent.VK_V}; //Throttle & Slowdown
     }
 
     public final int[] X = new int[Constants.GAME_UNITS];
@@ -30,7 +46,7 @@ public class GamePanel extends JPanel implements ActionListener {
 
     boolean running = false;
 
-    String victor; //TODO: Display victor's name as winner: victor at game end
+    String victor;
 
     Timer timer;
     Random random;
@@ -39,16 +55,20 @@ public class GamePanel extends JPanel implements ActionListener {
 
     LightCycle blueLightCycle = new LightCycle("Blue",X, Y,
             Constants.blueHeadColor, Constants.blueBodyColor,
-            new LightCycle.Pose2d(0,0, LightCycle.Direction.RIGHT));
+            Constants.blueLightCycleInitialPose,
+            Constants.blueKeyMap);
 
     LightCycle orangeLightCycle = new LightCycle("Orange",X, Y,
             Constants.orangeHeadColor, Constants.orangeBodyColor,
-            new LightCycle.Pose2d(200,0, LightCycle.Direction.RIGHT));
+            Constants.orangeLightCycleInitialPose,
+            Constants.orangeKeyMap);
+
     /**
      * Declare key graphics stuffs and add keyListeners
      */
     GamePanel(){
 
+        lightCycles.add(orangeLightCycle);
         lightCycles.add(blueLightCycle);
 
         random = new Random();
@@ -69,6 +89,9 @@ public class GamePanel extends JPanel implements ActionListener {
      * Mostly responsible for starting the timer, controlling game speed
      */
     public void startGame() {
+        blueLightCycle.initPosition(Constants.blueLightCycleInitialPose.x, Constants.blueLightCycleInitialPose.y );
+        orangeLightCycle.initPosition(Constants.orangeLightCycleInitialPose.x, Constants.orangeLightCycleInitialPose.y );
+
         running = true;
         timer = new Timer(Constants.DELAY,this);
         timer.start();
@@ -126,7 +149,8 @@ public class GamePanel extends JPanel implements ActionListener {
 
     public void gameOver(Graphics g){
         //Game over text
-        g.setColor(Color.white);
+        Color endTextColor = victor.equals("Blue") ? Constants.blueHeadColor : Constants.orangeHeadColor;
+        g.setColor(endTextColor);
         g.setFont(new Font("Rockwell Extra Bold",Font.BOLD,75));
         FontMetrics metrics = getFontMetrics(g.getFont());
         g.drawString("DEREZZED",(Constants.SCREEN_WIDTH - metrics.stringWidth("DEREZZED"))/2, Constants.SCREEN_HEIGHT/2);

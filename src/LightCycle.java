@@ -19,6 +19,8 @@ public class LightCycle {
     private final int[] X;
     private final int[] Y;
 
+    int[] keyMap;
+
     boolean throttleOn = false;
     boolean slowDownOn = false;
 
@@ -29,7 +31,7 @@ public class LightCycle {
     Color bodyColor;
 
     String name;
-    Pose2d pose;
+    public Pose2d pose;
 
     /**
      * Lovely lovely constructor
@@ -38,13 +40,14 @@ public class LightCycle {
      * @param headColor Head color
      * @param bodyColor Body Color
      */
-    public LightCycle(String name, int[] X, int[] Y, Color headColor, Color bodyColor, Pose2d initialPose) {
+    public LightCycle(String name, int[] X, int[] Y, Color headColor, Color bodyColor, Pose2d initialPose, int[] keyMap) {
         this.name = name;
         this.X = X;
         this.Y = Y;
         this.headColor = headColor;
         this.bodyColor = bodyColor;
         pose = initialPose;
+        this.keyMap = keyMap;
     }
 
     /**
@@ -61,6 +64,21 @@ public class LightCycle {
             }
             g.fillRect(X[i],Y[i], GamePanel.Constants.UNIT_SIZE, GamePanel.Constants.UNIT_SIZE);
         }
+    }
+
+    /**
+     * Pre-fill the trail and head position.
+     * @param startX pixel X
+     * @param startY pixel Y
+     */
+    public void initPosition(int startX, int startY) {
+        for (int i = 0; i < tilesPoisonedBehindLimit; i++) {
+            X[i] = startX;
+            Y[i] = startY;
+        }
+        // also keep your logical grid pose in sync:
+        pose.x = startX / GamePanel.Constants.UNIT_SIZE;
+        pose.y = startY / GamePanel.Constants.UNIT_SIZE;
     }
 
     /**
@@ -100,7 +118,7 @@ public class LightCycle {
     /**
      * Decides how often to actually move the lightcycle
      */
-    public void updateMovement() {
+    public void updateMovement() { //TODO: Fine tune speed up and slow down speed rates
         tickCount++;
         if (throttleOn) { //acceleration, move 2 per tick
             move();
@@ -125,15 +143,19 @@ public class LightCycle {
 
         switch (pose.direction){
             case Direction.UP:
+                pose.y++;
                 Y[0]=Y[0]- GamePanel.Constants.UNIT_SIZE;
                 break;
             case Direction.DOWN:
+                pose.y--;
                 Y[0]=Y[0]+ GamePanel.Constants.UNIT_SIZE;
                 break;
             case Direction.LEFT:
+                pose.x--;
                 X[0]=X[0]- GamePanel.Constants.UNIT_SIZE;
                 break;
             case Direction.RIGHT:
+                pose.x++;
                 X[0]=X[0]+ GamePanel.Constants.UNIT_SIZE;
                 break;
         }
@@ -145,27 +167,26 @@ public class LightCycle {
     public class BikeKeyDirectionMonitor extends KeyAdapter {
         @Override
         public void keyPressed(KeyEvent e){
-            switch (e.getKeyCode()){
-                case KeyEvent.VK_LEFT:
-                    if(pose.direction != Direction.RIGHT){
-                        pose.direction = Direction.LEFT;
-                    }
-                    break;
-                case KeyEvent.VK_RIGHT:
-                    if(pose.direction != Direction.LEFT){
-                        pose.direction = Direction.RIGHT;
-                    }
-                    break;
-                case KeyEvent.VK_UP:
-                    if(pose.direction != Direction.DOWN){
-                        pose.direction = Direction.UP;
-                    }
-                    break;
-                case KeyEvent.VK_DOWN:
-                    if(pose.direction != Direction.UP){
-                        pose.direction = Direction.DOWN;
-                    }
-                    break;
+            int keyCode = e.getKeyCode();
+            if (keyCode == keyMap[2]) {
+                if(pose.direction != Direction.RIGHT){
+                    pose.direction = Direction.LEFT;
+                }
+            }
+            else if (keyCode == keyMap[3]) {
+                if(pose.direction != Direction.LEFT){
+                    pose.direction = Direction.RIGHT;
+                }
+            }
+            else if (keyCode == keyMap[0]) {
+                if(pose.direction != Direction.DOWN){
+                    pose.direction = Direction.UP;
+                }
+            }
+            else if (keyCode == keyMap[1]) {
+                if(pose.direction != Direction.UP){
+                    pose.direction = Direction.DOWN;
+                }
             }
         }
     }
@@ -176,19 +197,17 @@ public class LightCycle {
     public class BikeKeyThrottleMonitor extends KeyAdapter {
         @Override
         public void keyPressed(KeyEvent e) {
-            switch (e.getKeyCode()) {
-                case KeyEvent.VK_SHIFT:
-                    throttleOn = true;
-                    break;
-                case KeyEvent.VK_CONTROL:
-                    slowDownOn = true;
-                    break;
-                default:
-                    throttleOn = false;
-                    slowDownOn = false;
-
+            int keyCode = e.getKeyCode();
+            if (keyCode == keyMap[4]) {
+                throttleOn = true;
             }
-
+            else if (keyCode == keyMap[5]) {
+                slowDownOn = true;
+            }
+            else {
+                throttleOn = false;
+                slowDownOn = false;
+            }
         }
     }
 

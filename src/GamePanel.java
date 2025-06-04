@@ -5,25 +5,30 @@ import java.util.ArrayList;
 import java.util.Random;
 
 public class GamePanel extends JPanel implements ActionListener {
-    //TODO: Add game restart on enter press
     //TODO: Introduce 2 player system
     //TODO: Make coordinate system.. work, and make it so that players generate or "spawn" in different areas defined by pose2d
     public static class Constants {
+        static final int trailLength = 30;
         static final int SCREEN_WIDTH = 800;
         static final int SCREEN_HEIGHT = 800;
         static final int UNIT_SIZE = 15;
         static final int GAME_UNITS = (SCREEN_WIDTH*SCREEN_HEIGHT)/UNIT_SIZE;
         static final int DELAY = 100; //overall speed of game //TODO: Fine tune value
 
+        static final String blueName = "blue";
+        static final String orangeName = "orange";
+
+        static final boolean debug = true;
+        static final int DEBUG_TICKSPEED = 25;
         //Colors
         static final Color blueHeadColor = new Color(14, 40, 234);
         static final Color blueBodyColor = new Color(3,254,254);
 
-        static final Color orangeHeadColor = new Color(200,150,30);
+        static final Color orangeHeadColor = new Color(230,100,30);
         static final Color orangeBodyColor = new Color(242, 192, 53);
 
-        static LightCycle.Pose2d blueLightCycleInitialPose = new LightCycle.Pose2d(0,0, LightCycle.Direction.RIGHT);
-        static LightCycle.Pose2d orangeLightCycleInitialPose = new LightCycle.Pose2d(0,0, LightCycle.Direction.UP);
+        static LightCycle.Pose2d blueLightCycleInitialPose = new LightCycle.Pose2d(0,0, LightCycle.Direction.DOWN);
+        static LightCycle.Pose2d orangeLightCycleInitialPose = new LightCycle.Pose2d(600,600, LightCycle.Direction.UP);
         //Keymaps
         /*
         0 = Up
@@ -41,10 +46,11 @@ public class GamePanel extends JPanel implements ActionListener {
         KeyEvent.VK_C, KeyEvent.VK_V}; //Throttle & Slowdown
     }
 
-    public final int[] X = new int[Constants.GAME_UNITS];
-    public final int[] Y = new int[Constants.GAME_UNITS];
+    public final int[] GameX = new int[Constants.GAME_UNITS];
+    public final int[] GameY = new int[Constants.GAME_UNITS];
 
     boolean running = false;
+    int globalTicks = 0;
 
     String victor;
 
@@ -53,20 +59,21 @@ public class GamePanel extends JPanel implements ActionListener {
 
     ArrayList<LightCycle> lightCycles = new ArrayList<>();
 
-    LightCycle blueLightCycle = new LightCycle("Blue",X, Y,
-            Constants.blueHeadColor, Constants.blueBodyColor,
-            Constants.blueLightCycleInitialPose,
+    LightCycle blueLightCycle = new LightCycle(Constants.blueName,
+            Constants.blueHeadColor, Constants.blueBodyColor, Constants.blueLightCycleInitialPose,
+            Constants.orangeKeyMap);
+
+    LightCycle orangeLightCycle = new LightCycle(Constants.orangeName,
+            Constants.orangeHeadColor, Constants.orangeBodyColor, Constants.orangeLightCycleInitialPose,
             Constants.blueKeyMap);
 
-    LightCycle orangeLightCycle = new LightCycle("Orange",X, Y,
-            Constants.orangeHeadColor, Constants.orangeBodyColor,
-            Constants.orangeLightCycleInitialPose,
-            Constants.orangeKeyMap);
+    JFrame gameFrame;
 
     /**
      * Declare key graphics stuffs and add keyListeners
      */
-    GamePanel(){
+    GamePanel(JFrame gameFrame){
+        this.gameFrame = gameFrame;
 
         lightCycles.add(orangeLightCycle);
         lightCycles.add(blueLightCycle);
@@ -77,10 +84,13 @@ public class GamePanel extends JPanel implements ActionListener {
         this.setFocusable(true);
 
         //Start key listeners for lightcycles
-        for (LightCycle lightCycle : lightCycles) {
-            this.addKeyListener(lightCycle.getBikeKeyDirectionMonitor());
-            this.addKeyListener(lightCycle.getBikeKeyThrottleMonitor());
-        }
+        this.addKeyListener(blueLightCycle.getBikeKeyDirectionMonitor());
+        this.addKeyListener(blueLightCycle.getBikeKeyThrottleMonitor());
+        //BE EXPLICIT
+        this.addKeyListener(orangeLightCycle.getBikeKeyThrottleMonitor());
+        this.addKeyListener(orangeLightCycle.getBikeKeyDirectionMonitor());
+
+        this.addKeyListener(new ExitKeyListener());
 
         startGame();
     }
@@ -89,9 +99,6 @@ public class GamePanel extends JPanel implements ActionListener {
      * Mostly responsible for starting the timer, controlling game speed
      */
     public void startGame() {
-        blueLightCycle.initPosition(Constants.blueLightCycleInitialPose.x, Constants.blueLightCycleInitialPose.y );
-        orangeLightCycle.initPosition(Constants.orangeLightCycleInitialPose.x, Constants.orangeLightCycleInitialPose.y );
-
         running = true;
         timer = new Timer(Constants.DELAY,this);
         timer.start();
@@ -105,6 +112,26 @@ public class GamePanel extends JPanel implements ActionListener {
         draw(g);
     }
 
+    public void writeLightCycleToDisplay(Graphics g, LightCycle lightCycle) {
+
+        if (lightCycle.tickCount % Constants.DEBUG_TICKSPEED == 0) {
+            System.out.println(lightCycle.name + " light cycle head: " +
+                    "(" + lightCycle.lightCycleX[0] + "," + lightCycle.lightCycleY[0] + ")");
+            System.out.println("Light cycle direction: " + lightCycle.direction);
+        }
+
+        for(int i = 0; i < lightCycle.trailLength; i++){
+            if(i==0){
+                g.setColor(lightCycle.headColor);             //for the head
+            }else {
+                g.setColor(lightCycle.bodyColor); //for the body
+
+            }
+
+            g.fillRect(lightCycle.lightCycleX[i], lightCycle.lightCycleY[i], GamePanel.Constants.UNIT_SIZE, GamePanel.Constants.UNIT_SIZE);
+        }
+    }
+
     /**
      * @param g the Graphics object to draw onto
      */
@@ -112,15 +139,16 @@ public class GamePanel extends JPanel implements ActionListener {
         if(running){
             //draw the grid line on the screen
             int lineSpacing = Constants.SCREEN_HEIGHT/ Constants.UNIT_SIZE;
-            for(int i = 0;i< lineSpacing;i++){
-                g.drawLine(i* Constants.UNIT_SIZE,0,i* Constants.UNIT_SIZE, Constants.SCREEN_HEIGHT);
+
+            for(int i = 0; i < lineSpacing; ++i){
+                g.drawLine(i* Constants.UNIT_SIZE,0,i * Constants.UNIT_SIZE, Constants.SCREEN_HEIGHT);
                 g.drawLine(0,i* Constants.UNIT_SIZE, Constants.SCREEN_WIDTH,i* Constants.UNIT_SIZE);
             }
 
-            //draw the head and the body of the lightbike
+            //draw the head and the body of the lightbikes
             //handles coloring too
             for (LightCycle lightCycle : lightCycles) {
-                lightCycle.draw(g);
+                writeLightCycleToDisplay(g, lightCycle);
             }
 
         }
@@ -130,10 +158,52 @@ public class GamePanel extends JPanel implements ActionListener {
 
     }
 
+    private boolean globalCollisionCheck(LightCycle lightCycle) {
+        if (lightCycle.name.equals(Constants.blueName)) {
+            //blue check
+            blueLightCycle.updatePose();
+            for (int i = 0; i < Constants.trailLength; ++i) {
+
+                int x = orangeLightCycle.lightCycleX[i];
+                int y = orangeLightCycle.lightCycleY[i];
+
+                if ((x == blueLightCycle.lightCyclePose.x) && (y == blueLightCycle.lightCyclePose.y)) {
+                    System.out.println("Global collision triggered");
+                    return true;
+                }
+            }
+        } else {
+            //orange check
+            orangeLightCycle.updatePose();
+            for (int i = 0; i < Constants.trailLength; ++i) {
+
+                int x = blueLightCycle.lightCycleX[i];
+                int y = blueLightCycle.lightCycleY[i];
+
+                if ((x == orangeLightCycle.lightCyclePose.x) && (y == orangeLightCycle.lightCyclePose.y)) {
+                    System.out.println("Global collision triggered");
+                    return true;
+                }
+            }
+        }
+
+        return false;
+
+    }
+
     public void checkCollisions(){
-        //checks if head collide the body
+
         for (int i = 0; i < lightCycles.size(); ++i) {
-            if (lightCycles.get(i).runLightcycleCollisionCheck()) {
+            LightCycle lightcycle = lightCycles.get(i);
+
+            boolean lightCycleLocalCheckOK = lightcycle.runLightcycleLocalCollisionCheck();
+            boolean lightCycleGlobalCheckOK = globalCollisionCheck(lightcycle);
+
+            if (globalTicks % Constants.DEBUG_TICKSPEED == 0 && Constants.debug) {
+                System.out.println(lightcycle.name + " collison: " + "Global: " + lightCycleGlobalCheckOK + ", Local: " + lightCycleLocalCheckOK);
+            }
+
+            if (lightCycleGlobalCheckOK || lightCycleLocalCheckOK) {
                 running = false;
                 //Static structure for 2 players retrieving the alternate's name
                 //Also works for 1 player since It's not directly accessing indexes
@@ -149,19 +219,41 @@ public class GamePanel extends JPanel implements ActionListener {
 
     public void gameOver(Graphics g){
         //Game over text
-        Color endTextColor = victor.equals("Blue") ? Constants.blueHeadColor : Constants.orangeHeadColor;
+        Color endTextColor = victor.equals(Constants.blueName) ? Constants.blueHeadColor : Constants.orangeHeadColor;
         g.setColor(endTextColor);
         g.setFont(new Font("Rockwell Extra Bold",Font.BOLD,75));
         FontMetrics metrics = getFontMetrics(g.getFont());
         g.drawString("DEREZZED",(Constants.SCREEN_WIDTH - metrics.stringWidth("DEREZZED"))/2, Constants.SCREEN_HEIGHT/2);
     }
 
+    /**
+     * Periodic update function
+     * @param e the event to be processed
+     */
     @Override
     public void actionPerformed(ActionEvent e) {
+
         if(running){
+            ++globalTicks;
             blueLightCycle.updateMovement();
+            orangeLightCycle.updateMovement();
             checkCollisions();
         }
         repaint();
+    }
+
+    /**
+     * Responsible for handling game restarts
+     */
+    public class ExitKeyListener extends KeyAdapter {
+        @Override
+        public void keyPressed(KeyEvent e) {
+            int keyCode = e.getKeyCode();
+            if (keyCode == KeyEvent.VK_BACK_SPACE) {
+                new GameFrame();
+                gameFrame.dispose();
+            }
+        }
+
     }
 }

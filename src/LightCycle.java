@@ -16,79 +16,66 @@ public class LightCycle {
         }
     }
 
-    private final int[] X;
-    private final int[] Y;
+    public final int[] lightCycleX = new int[GamePanel.Constants.GAME_UNITS];
+    public final int[] lightCycleY = new int[GamePanel.Constants.GAME_UNITS];
 
     int[] keyMap;
 
     boolean throttleOn = false;
     boolean slowDownOn = false;
 
-    int tilesPoisonedBehindLimit = 150;
+    int trailLength = GamePanel.Constants.trailLength;
     int tickCount = 0;
 
     Color headColor;
     Color bodyColor;
 
     String name;
-    public Pose2d pose;
+    private final Pose2d initialPose;
 
+    //IMPORTANT: THIS POSE IS REFLECTIVE OF THE HEAD OF THE LIGHTCYCLE!! NOT THE TRAIL OR OTHER SEGMENTS!!
+    public Pose2d lightCyclePose;
+
+    Direction direction;
     /**
      * Lovely lovely constructor
-     * @param X X array
-     * @param Y Y array
      * @param headColor Head color
      * @param bodyColor Body Color
      */
-    public LightCycle(String name, int[] X, int[] Y, Color headColor, Color bodyColor, Pose2d initialPose, int[] keyMap) {
+    public LightCycle(String name, Color headColor, Color bodyColor, Pose2d initialPose, int[] keyMap) {
         this.name = name;
-        this.X = X;
-        this.Y = Y;
         this.headColor = headColor;
         this.bodyColor = bodyColor;
-        pose = initialPose;
+        this.initialPose = initialPose;
         this.keyMap = keyMap;
+
+        direction = initialPose.direction;
+
+        lightCyclePose = new Pose2d(initialPose.x, initialPose.y, direction);
+        initializeAtPose();
+    }
+
+    public void initializeAtPose() {
+        lightCycleX[0] = initialPose.x;
+        lightCycleY[0] = initialPose.y;
+        direction = initialPose.direction;
+        System.out.println("Pose of lightcycle " + name + " initialized at: ("+ lightCycleX[0] + "," + lightCycleY[0]+") \nFacing: " + direction);
+    }
+
+    public void updatePose() {
+        lightCyclePose.x = lightCycleX[0];
+        lightCyclePose.y = lightCycleY[0];
+        lightCyclePose.direction = direction;
     }
 
     /**
-     * Reflect backend changes onto the Swing app
-     * @param g Graphics renderer
-     */
-    public void draw(Graphics g) {
-        for(int i = 0; i< tilesPoisonedBehindLimit; i++){
-            if(i==0){
-                g.setColor(headColor);             //for the head
-            }else {
-                g.setColor(bodyColor); //for the body
-
-            }
-            g.fillRect(X[i],Y[i], GamePanel.Constants.UNIT_SIZE, GamePanel.Constants.UNIT_SIZE);
-        }
-    }
-
-    /**
-     * Pre-fill the trail and head position.
-     * @param startX pixel X
-     * @param startY pixel Y
-     */
-    public void initPosition(int startX, int startY) {
-        for (int i = 0; i < tilesPoisonedBehindLimit; i++) {
-            X[i] = startX;
-            Y[i] = startY;
-        }
-        // also keep your logical grid pose in sync:
-        pose.x = startX / GamePanel.Constants.UNIT_SIZE;
-        pose.y = startY / GamePanel.Constants.UNIT_SIZE;
-    }
-
-    /**
-     * Checks if a lightcycle has collided with something
+     * Checks if a lightcycle has collided with a wall or itself NOT other lightcycles
      * @return true if the lightcycle has collided with something, false if not
      */
-    public boolean runLightcycleCollisionCheck() {
+    public boolean runLightcycleLocalCollisionCheck() {
         //checks for collisions with trail
-        for(int i = tilesPoisonedBehindLimit; i>0; i--){
-            if((X[0]== X[i]) && (Y[0]== Y[i])){
+        for(int i = trailLength; i>0; i--){
+            if((lightCycleX[0]== lightCycleX[i]) && (lightCycleY[0]== lightCycleY[i])){
                 return true;
             }
         }
@@ -96,19 +83,19 @@ public class LightCycle {
         //just let the if chain be, because why not :(
 
         //check if head touches left border
-        if(X[0] < 0){
+        if(lightCycleX[0] < 0){
             return true;
         }
         //checks if head touches right border
-        else if(X[0] > GamePanel.Constants.SCREEN_WIDTH){
+        else if(lightCycleX[0] > GamePanel.Constants.SCREEN_WIDTH){
             return true;
         }
         //checks if head touched top border
-        else if(Y[0] < 0){
+        else if(lightCycleY[0] < 0){
             return true;
         }
         //checks if head touched bottom border
-        else if(Y[0] > GamePanel.Constants.SCREEN_HEIGHT){
+        else if(lightCycleY[0] > GamePanel.Constants.SCREEN_HEIGHT){
             return true;
         }
 
@@ -136,27 +123,29 @@ public class LightCycle {
      * Responsible for modifying backend direction changes to the coordinate arrays
      */
     public void move(){
-        for(int i = tilesPoisonedBehindLimit; i>0; i--){
-            X[i] = X[i-1];
-            Y[i] = Y[i-1];
+
+        //account for every trail unit other than the head (i > 0)
+        for(int i = trailLength; i>0; i--){
+            lightCycleX[i] = lightCycleX[i-1];
+            lightCycleY[i] = lightCycleY[i-1];
         }
 
-        switch (pose.direction){
+        switch (direction) {
             case Direction.UP:
-                pose.y++;
-                Y[0]=Y[0]- GamePanel.Constants.UNIT_SIZE;
+                //y++
+                lightCycleY[0] = lightCycleY[0] - GamePanel.Constants.UNIT_SIZE;
                 break;
             case Direction.DOWN:
-                pose.y--;
-                Y[0]=Y[0]+ GamePanel.Constants.UNIT_SIZE;
+                //y--
+                lightCycleY[0] = lightCycleY[0] + GamePanel.Constants.UNIT_SIZE;
                 break;
             case Direction.LEFT:
-                pose.x--;
-                X[0]=X[0]- GamePanel.Constants.UNIT_SIZE;
+                //x--
+                lightCycleX[0] = lightCycleX[0] - GamePanel.Constants.UNIT_SIZE;
                 break;
             case Direction.RIGHT:
-                pose.x++;
-                X[0]=X[0]+ GamePanel.Constants.UNIT_SIZE;
+                //x++
+                lightCycleX[0] = lightCycleX[0] + GamePanel.Constants.UNIT_SIZE;
                 break;
         }
     }
@@ -169,23 +158,23 @@ public class LightCycle {
         public void keyPressed(KeyEvent e){
             int keyCode = e.getKeyCode();
             if (keyCode == keyMap[2]) {
-                if(pose.direction != Direction.RIGHT){
-                    pose.direction = Direction.LEFT;
+                if(direction != Direction.RIGHT){
+                    direction = Direction.LEFT;
                 }
             }
             else if (keyCode == keyMap[3]) {
-                if(pose.direction != Direction.LEFT){
-                    pose.direction = Direction.RIGHT;
+                if(direction != Direction.LEFT){
+                    direction = Direction.RIGHT;
                 }
             }
             else if (keyCode == keyMap[0]) {
-                if(pose.direction != Direction.DOWN){
-                    pose.direction = Direction.UP;
+                if(direction != Direction.DOWN){
+                    direction = Direction.UP;
                 }
             }
             else if (keyCode == keyMap[1]) {
-                if(pose.direction != Direction.UP){
-                    pose.direction = Direction.DOWN;
+                if(direction != Direction.UP){
+                    direction = Direction.DOWN;
                 }
             }
         }
